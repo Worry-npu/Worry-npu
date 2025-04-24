@@ -5,7 +5,6 @@ import matplotlib.pyplot as plt
 import networkx as nx
 
 st.set_page_config(page_title="FP-Growth关联规则分析", layout="wide")
-
 st.title("📊 FP-Growth 关联规则分析系统")
 
 # 上传CSV数据
@@ -17,7 +16,8 @@ min_confidence = st.sidebar.slider("最小置信度 (confidence)", 0.1, 1.0, 0.7
 
 def preprocess_data(df):
     """ 将交易数据转为 one-hot 编码格式 """
-    transactions = df.stack().groupby(level=0).apply(list)
+    df = df.fillna("")  # 填充空值
+    transactions = df.apply(lambda row: list(filter(None, row)), axis=1)
     all_items = sorted(set(item for sublist in transactions for item in sublist))
     encoded_rows = [{item: (item in row) for item in all_items} for row in transactions]
     return pd.DataFrame(encoded_rows)
@@ -42,13 +42,16 @@ if uploaded_file:
 
     with col2:
         st.markdown("📐 **关联规则**")
-        st.dataframe(rules[["antecedents", "consequents", "support", "confidence", "lift"]])
+        rules_display = rules.copy()
+        rules_display["antecedents"] = rules_display["antecedents"].apply(lambda x: ', '.join(list(x)))
+        rules_display["consequents"] = rules_display["consequents"].apply(lambda x: ', '.join(list(x)))
+        st.dataframe(rules_display[["antecedents", "consequents", "support", "confidence", "lift"]])
 
     # 可视化：频繁项集柱状图
     st.subheader("📊 频繁项集支持度分布图")
     fig, ax = plt.subplots()
     top_items = freq_itemsets.copy()
-    top_items["itemsets"] = top_items["itemsets"].apply(lambda x: ', '.join(x))
+    top_items["itemsets"] = top_items["itemsets"].apply(lambda x: ', '.join(list(x)))
     top_items.sort_values(by="support", ascending=False).head(10).plot.bar(
         x="itemsets", y="support", ax=ax, legend=False, color="skyblue"
     )
@@ -60,9 +63,9 @@ if uploaded_file:
     # 可视化：网络图
     st.subheader("🌐 关联规则网络图")
     G = nx.DiGraph()
-    for _, row in rules.iterrows():
-        antecedent = ', '.join(row["antecedents"])
-        consequent = ', '.join(row["consequents"])
+    for _, row in rules_display.iterrows():
+        antecedent = row["antecedents"]
+        consequent = row["consequents"]
         G.add_node(antecedent)
         G.add_node(consequent)
         G.add_edge(antecedent, consequent, weight=row["confidence"])
@@ -77,4 +80,3 @@ if uploaded_file:
 
 else:
     st.info("请上传CSV交易数据文件，每行一个交易项（多列为多个商品项）。示例：牛奶,面包,尿布")
-
