@@ -103,4 +103,4 @@ if uploaded_file is not None:
             st.pyplot(fig3)
 
 else:
-    st.info("请上传一个包含数值特征的CSV文件，例如 Mall Customers 数据集。")
+    st.info("请上传一个包含数值特征的CSV文件。")
